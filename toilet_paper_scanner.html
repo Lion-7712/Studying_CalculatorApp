@@ -174,10 +174,55 @@
   .spinner { display:inline-block; width:12px; height:12px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:4px; }
   @keyframes spin { to{transform:rotate(360deg)} }
 
+
+  /* ── Password screen ── */
+  #pw-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; flex-direction: column; padding: 32px;
+  }
+  #pw-screen .pw-box {
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 340px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12); text-align: center;
+  }
+  #pw-screen .pw-icon { font-size: 40px; margin-bottom: 12px; }
+  #pw-screen h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  #pw-screen p { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  #pw-screen input {
+    width: 100%; padding: 12px; font-size: 18px; letter-spacing: 0.3em;
+    text-align: center; border: 2px solid var(--border); border-radius: 8px;
+    background: var(--bg); font-family: 'Space Mono', monospace;
+    margin-bottom: 12px;
+  }
+  #pw-screen input:focus { outline: none; border-color: var(--accent); }
+  #pw-screen .btn-pw {
+    width: 100%; padding: 12px; background: var(--accent); color: white;
+    border: none; border-radius: 8px; font-size: 15px; font-weight: 700;
+    font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+    box-shadow: 0 4px 0 #8a2010;
+  }
+  #pw-screen .btn-pw:active { transform: translateY(2px); box-shadow: 0 2px 0 #8a2010; }
+  #pw-screen .pw-error { color: var(--accent); font-size: 12px; margin-top: 8px; display: none; }
+
   footer { text-align:center; padding:16px; color:var(--muted); font-size:10px; font-family:'Space Mono',monospace; letter-spacing:0.05em; }
 </style>
 </head>
 <body>
+
+<!-- Password screen -->
+<div id="pw-screen">
+  <div class="pw-box">
+    <div class="pw-icon">🔒</div>
+    <h2>トイレットペーパー 単価計算</h2>
+    <p>パスワードを入力してください</p>
+    <input type="password" id="pw-input" placeholder="••••••••" maxlength="20"
+      onkeydown="if(event.key==='Enter') checkPassword()">
+    <button class="btn-pw" onclick="checkPassword()">ログイン</button>
+    <div class="pw-error" id="pw-error">パスワードが違います</div>
+  </div>
+</div>
+
 
 <header>
   <div class="roll-icon">🧻</div>
@@ -343,6 +388,33 @@
 <footer>バーコードはJANコード (EAN-13) に対応 · 価格は税込で入力してください</footer>
 
 <script>
+// ============================================================
+// Password authentication
+// ============================================================
+// ★ パスワードをここで設定してください
+const APP_PASSWORD = 'tp2024';
+
+(function(){
+  // セッション中は再入力不要
+  if(sessionStorage.getItem('tp_auth') === 'ok'){
+    document.getElementById('pw-screen').style.display = 'none';
+  }
+})();
+
+function checkPassword(){
+  const input = document.getElementById('pw-input').value;
+  if(input === APP_PASSWORD){
+    sessionStorage.setItem('tp_auth','ok');
+    document.getElementById('pw-screen').style.display = 'none';
+  } else {
+    const err = document.getElementById('pw-error');
+    err.style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+    setTimeout(()=>{ err.style.display='none'; }, 2500);
+  }
+}
+
 // ============================================================
 // Constants & State
 // ============================================================
@@ -543,6 +615,7 @@ function saveToDb(){
 // ============================================================
 function sendToGAS(entry){
   const payload = {
+    token:      '017xvFU36Vs5YJ8sQqxX',
     date:       entry.date,
     store:      entry.store      || '',
     name:       entry.name,
