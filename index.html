@@ -54,10 +54,42 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; }
   .dot.r { background: #ff5f57; } .dot.y { background: #ffbd2e; } .dot.g { background: #28c840; }
 
-  #scanner-container { position: relative; width: 100%; background: #111; overflow: hidden; display: none; }
-  #scanner-container video, #scanner-container canvas { width: 100% !important; height: auto !important; display: block; }
-  .scan-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-  .scan-frame { width: 70%; height: 80px; border: 3px solid var(--accent2); border-radius: 6px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); position: relative; }
+  #scanner-container {
+    position: relative;
+    width: 100%;
+    /* 正方形に固定 */
+    aspect-ratio: 1 / 1;
+    background: #111;
+    overflow: hidden;
+    display: none;
+  }
+  #scanner-container video,
+  #scanner-container canvas {
+    /* カメラ映像を正方形コンテナにトリミング表示 */
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: auto !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+  }
+  .scan-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .scan-frame {
+    width: 72%; height: 90px;
+    border: 3px solid var(--accent2);
+    border-radius: 6px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.50);
+    position: relative;
+  }
   .scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent2), transparent); animation: scanline 1.8s ease-in-out infinite; }
   @keyframes scanline { 0% { top: 0; opacity: 1; } 80% { opacity: 1; } 100% { top: calc(100% - 2px); opacity: 0.3; } }
 
@@ -304,7 +336,7 @@ function startScan(){
 
   Quagga.init({
     inputStream:{ type:'LiveStream', target:document.querySelector('#interactive'),
-      constraints:{ facingMode:'environment', width:{ideal:1280}, height:{ideal:720} } },
+        constraints:{ facingMode:'environment', width:{ideal:1080}, height:{ideal:1080}, aspectRatio:{ideal:1} } },
     decoder:{ readers:['ean_reader','ean_8_reader','code_128_reader'] },
     locate:true, frequency:5
   }, err=>{
