@@ -621,9 +621,8 @@ function saveToDb(){
 async function loadHistoryFromGAS(){
   try{
     showSyncStatus('loading');
-    const res = await fetch(`${GAS_URL}?token=017xvFU36Vs5YJ8sQqxX`, {
-      mode: 'cors'
-    });
+    const url = `${GAS_URL}?token=017xvFU36Vs5YJ8sQqxX&action=read`;
+    const res = await fetch(url, { mode:'cors' });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if(data.result === 'ok' && data.history && data.history.length > 0){
@@ -635,7 +634,7 @@ async function loadHistoryFromGAS(){
     } else if(data.result === 'unauthorized'){
       showSyncStatus('error', '認証エラー');
     } else {
-      showSyncStatus('ok'); // データなしも正常
+      showSyncStatus('ok');
     }
   } catch(err){
     console.warn('GAS読み込み失敗:', err);
@@ -643,29 +642,24 @@ async function loadHistoryFromGAS(){
   }
 }
 
-// スプレッドシートへ書き込む
+// スプレッドシートへ書き込む（GETパラメータで送信）
 async function sendToGAS(entry){
-  const payload = {
-    token:      '017xvFU36Vs5YJ8sQqxX',
-    date:       entry.date,
-    store:      entry.store      || '',
-    name:       entry.name,
-    type:       entry.type,
-    barcode:    entry.barcode    || '',
-    price:      entry.price,
-    rolls:      entry.rolls,
-    length:     entry.length,
-    totalLength:entry.totalLength,
-    unitPrice:  entry.unitPrice.toFixed(2)
-  };
-
   try{
-    const res = await fetch(GAS_URL, {
-      method:  'POST',
-      mode:    'cors',
-      headers: {'Content-Type':'application/json'},
-      body:    JSON.stringify(payload)
+    const params = new URLSearchParams({
+      token:       '017xvFU36Vs5YJ8sQqxX',
+      action:      'write',
+      date:        entry.date,
+      store:       entry.store       || '',
+      name:        entry.name,
+      type:        entry.type,
+      barcode:     entry.barcode     || '',
+      price:       entry.price,
+      rolls:       entry.rolls,
+      length:      entry.length,
+      totalLength: entry.totalLength,
+      unitPrice:   entry.unitPrice.toFixed(2)
     });
+    const res = await fetch(`${GAS_URL}?${params}`, { mode:'cors' });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if(data.result === 'ok'){

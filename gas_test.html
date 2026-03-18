@@ -14,13 +14,10 @@
 </style>
 </head>
 <body>
-<h2>🔧 GAS接続テスト</h2>
-
+<h2>🔧 GAS接続テスト v2（GET統一版）</h2>
 <button onclick="testGet()">① GETテスト（履歴読み込み）</button>
-<button class="green" onclick="testPost()">② POSTテスト（テストデータ書き込み）</button>
-
+<button class="green" onclick="testWrite()">② 書き込みテスト（GETパラメータ）</button>
 <pre id="log">ボタンを押してテストしてください</pre>
-
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwk5NsOZtPdXiMq1i4K6_bo6uw99UU_f9nph4zqjcQioT9HatJSkumq4qCfDojthbBy/exec';
 const TOKEN   = '017xvFU36Vs5YJ8sQqxX';
@@ -32,61 +29,45 @@ function clear() { document.getElementById('log').innerHTML = ''; }
 
 async function testGet() {
   clear();
-  log('=== GET テスト開始 ===', 'info');
-  log(`URL: ${GAS_URL}?token=${TOKEN}`);
+  log('=== GET（読み込み）テスト開始 ===', 'info');
   try {
-    const res = await fetch(`${GAS_URL}?token=${encodeURIComponent(TOKEN)}`, { mode: 'cors' });
-    log(`HTTP Status: ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+    const url = `${GAS_URL}?token=${encodeURIComponent(TOKEN)}&action=read`;
+    log('URL: ' + url);
+    const res = await fetch(url, { mode: 'cors' });
+    log(`HTTP Status: ${res.status}`, res.ok ? 'ok' : 'err');
     const text = await res.text();
-    log('レスポンス(生): ' + text.substring(0, 500));
-    try {
-      const data = JSON.parse(text);
-      log('result: ' + data.result, data.result === 'ok' ? 'ok' : 'err');
-      if(data.history) log(`履歴件数: ${data.history.length}件`, 'ok');
-      if(data.result === 'unauthorized') log('❌ トークン認証失敗', 'err');
-    } catch(e) { log('JSONパース失敗: ' + e.message, 'err'); }
+    log('レスポンス: ' + text.substring(0, 300));
+    const data = JSON.parse(text);
+    log('result: ' + data.result, data.result === 'ok' ? 'ok' : 'err');
+    if(data.history !== undefined) log(`履歴件数: ${data.history.length}件`, 'ok');
+    if(data.result === 'unauthorized') log('❌ トークン認証失敗', 'err');
   } catch(err) {
-    log('❌ fetch失敗: ' + err.message, 'err');
-    log('→ CORSエラーの可能性。GASの「アクセスできるユーザー：全員」を確認', 'info');
+    log('❌ エラー: ' + err.message, 'err');
   }
 }
 
-async function testPost() {
+async function testWrite() {
   clear();
-  log('=== POST テスト開始 ===', 'info');
-  const payload = {
-    token: TOKEN,
-    date: new Date().toLocaleDateString('ja-JP'),
-    store: 'テスト店舗',
-    name: 'テスト商品',
-    type: 'ダブル',
-    barcode: '0000000000000',
-    price: 100,
-    rolls: 12,
-    length: 27.5,
-    totalLength: 330,
-    unitPrice: '0.30'
-  };
-  log('送信データ: ' + JSON.stringify(payload, null, 2));
+  log('=== GET（書き込み）テスト開始 ===', 'info');
   try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const params = new URLSearchParams({
+      token: TOKEN, action: 'write',
+      date: new Date().toLocaleDateString('ja-JP'),
+      store: 'テスト店舗', name: 'テスト商品', type: 'ダブル',
+      barcode: '0000000000000', price: 100, rolls: 12,
+      length: 27.5, totalLength: 330, unitPrice: '0.30'
     });
+    const url = `${GAS_URL}?${params}`;
+    log('URL: ' + url.substring(0, 150) + '...');
+    const res = await fetch(url, { mode: 'cors' });
     log(`HTTP Status: ${res.status}`, res.ok ? 'ok' : 'err');
     const text = await res.text();
-    log('レスポンス(生): ' + text);
-    try {
-      const data = JSON.parse(text);
-      log('result: ' + data.result, data.result === 'ok' ? 'ok' : 'err');
-      if(data.result === 'ok') log('✅ スプレッドシートへの書き込み成功！', 'ok');
-      if(data.result === 'unauthorized') log('❌ トークン認証失敗', 'err');
-    } catch(e) { log('JSONパース失敗: ' + e.message, 'err'); }
+    log('レスポンス: ' + text);
+    const data = JSON.parse(text);
+    log('result: ' + data.result, data.result === 'ok' ? 'ok' : 'err');
+    if(data.result === 'ok') log('✅ スプレッドシートへの書き込み成功！', 'ok');
   } catch(err) {
-    log('❌ fetch失敗: ' + err.message, 'err');
-    log('→ CORSエラーの可能性。GASの「アクセスできるユーザー：全員」を確認', 'info');
+    log('❌ エラー: ' + err.message, 'err');
   }
 }
 </script>
