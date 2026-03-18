@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open Food Facts API デバッグ</title>
+<style>
+  body { font-family: monospace; background: #1a1a1a; color: #e0e0e0; padding: 16px; }
+  h2 { color: #4ad48a; margin-bottom: 12px; }
+  input { background: #333; color: white; border: 1px solid #555; border-radius: 4px; padding: 8px; font-size: 14px; width: 220px; }
+  button { background: #1a7a3a; color: white; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 14px; margin-left: 8px; }
+  #log { margin-top: 16px; }
+  .entry { margin-bottom: 16px; border-left: 3px solid #555; padding-left: 12px; }
+  .entry.ok   { border-color: #2a8a4a; }
+  .entry.err  { border-color: #c8402a; }
+  .entry.warn { border-color: #ffbd2e; }
+  .label { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
+  pre { background: #222; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+  .tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-right: 6px; }
+  .tag.ok  { background: #2a8a4a; } .tag.err { background: #c8402a; } .tag.warn{ background: #7a5010; }
+</style>
+</head>
+<body>
+<h2>🌍 Open Food Facts API デバッグツール</h2>
+<div>
+  <input type="text" id="jan" placeholder="JANコード（例: 4901750263102）" inputmode="numeric">
+  <button onclick="runTest()">テスト実行</button>
+</div>
+<div id="log"></div>
+<script>
+function log(cls, title, content) {
+  const d = document.getElementById('log');
+  const tagMap = {ok:'✅ OK', err:'❌ ERROR', warn:'⚠️ WARN'};
+  d.innerHTML += `<div class="entry ${cls}"><div class="label"><span class="tag ${cls}">${tagMap[cls]||cls}</span>${title}</div><pre>${typeof content === 'object' ? JSON.stringify(content, null, 2) : content}</pre></div>`;
+}
+async function runTest() {
+  const jan = document.getElementById('jan').value.trim();
+  document.getElementById('log').innerHTML = '';
+  if (!jan) { log('err','入力エラー','JANコードを入力してください'); return; }
+  log('ok','テスト開始',`JAN: ${jan}`);
+  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(jan)}?fields=product_name,product_name_ja,brands,quantity,packaging,labels,categories`;
+  log('ok','リクエストURL', url);
+  try {
+    const res = await fetch(url, { headers:{'User-Agent':'ToiletPaperPriceCalc-Debug/1.0'} });
+    log('ok',`HTTP ${res.status}`, '');
+    const data = await res.json();
+    if(data.status !== 1 || !data.product){
+      log('warn','商品が見つかりませんでした', `status: ${data.status}\nこのJANコードはOpen Food Factsに未登録です。\n手動入力→「保存」ボタンでローカルDBに登録しましょう。`);
+      return;
+    }
+    const p = data.product;
+    const combined = [p.quantity||'', p.packaging||'', p.labels||'', p.categories||'', p.product_name_ja||'', p.product_name||''].join(' | ');
+    const rm = combined.match(/(\d{1,3})\s*(?:ロール|rolls?|個入り?|個パック|本入り?)/i);
+    const lm = combined.match(/(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:m(?!g|l|oz)|ｍ|メートル)/i);
+    let type = 'ダブル';
+    if(/トリプル|triple|3.?ply/i.test(combined)) type='トリプル';
+    else if(/シングル|single|1.?ply/i.test(combined)) type='シングル';
+    else if(/ダブル|double|2.?ply/i.test(combined)) type='ダブル';
+    log('ok','取得成功 - 解析結果',
+      `商品名(ja): ${p.product_name_ja||'(なし)'}\n商品名:     ${p.product_name||'(なし)'}\nブランド:   ${p.brands||'(なし)'}\nロール数:   ${rm ? rm[1]+'ロール ✅' : '❌ 見つからず'}\n長さ:       ${lm ? lm[1]+'m ✅'     : '❌ 見つからず'}\nタイプ:     ${type}\n\n--- 生フィールド ---\nquantity:   ${p.quantity||'(なし)'}\npackaging:  ${p.packaging||'(なし)'}\nlabels:     ${p.labels||'(なし)'}\ncategories: ${(p.categories||'').substring(0,200)}`
+    );
+  } catch(e) {
+    log('err','エラー', e.message);
+  }
+}
+document.getElementById('jan').addEventListener('keydown', e => { if(e.key==='Enter') runTest(); });
+</script>
+</body>
+</html>
