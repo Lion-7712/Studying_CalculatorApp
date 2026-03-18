@@ -38,10 +38,10 @@ async function runTest() {
   document.getElementById('log').innerHTML = '';
   if (!jan) { log('err','入力エラー','JANコードを入力してください'); return; }
   log('ok','テスト開始',`JAN: ${jan}`);
-  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(jan)}?fields=product_name,product_name_ja,brands,quantity,packaging,labels,categories`;
+  const url = `https://world.openfoodfacts.net/api/v2/product/${encodeURIComponent(jan)}.json?fields=product_name,product_name_ja,brands,quantity,packaging,labels,categories`;
   log('ok','リクエストURL', url);
   try {
-    const res = await fetch(url, { headers:{'User-Agent':'ToiletPaperPriceCalc-Debug/1.0'} });
+    const res = await fetch(url, { headers:{'Authorization':'Basic '+btoa('off:off'),'User-Agent':'ToiletPaperPriceCalc-Debug/1.0'} });
     log('ok',`HTTP ${res.status}`, '');
     const data = await res.json();
     if(data.status !== 1 || !data.product){

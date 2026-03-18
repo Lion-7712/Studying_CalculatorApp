@@ -396,8 +396,11 @@ async function fillFromOFF(barcode){
 
   try{
     // Open Food Facts API - CORS対応・完全無料
-    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}?fields=product_name,product_name_ja,brands,quantity,packaging,labels,categories`, {
-      headers:{ 'User-Agent': 'ToiletPaperPriceCalc/1.0' }
+    const res = await fetch(`https://world.openfoodfacts.net/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,product_name_ja,brands,quantity,packaging,labels,categories`, {
+      headers:{
+        'Authorization': 'Basic ' + btoa('off:off'),
+        'User-Agent': 'ToiletPaperPriceCalc/1.0'
+      }
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
