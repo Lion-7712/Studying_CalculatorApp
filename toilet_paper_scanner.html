@@ -205,6 +205,12 @@
   #pw-screen .btn-pw:active { transform: translateY(2px); box-shadow: 0 2px 0 #8a2010; }
   #pw-screen .pw-error { color: var(--accent); font-size: 12px; margin-top: 8px; display: none; }
 
+  .sync-status { font-size:10px; font-family:'Space Mono',monospace; white-space:nowrap; padding:3px 7px; border-radius:4px; }
+  .sync-status.loading { background:rgba(255,255,255,0.2); color:white; }
+  .sync-status.ok      { background:rgba(255,255,255,0.2); color:white; }
+  .sync-status.saved   { background:rgba(255,255,255,0.3); color:white; }
+  .sync-status.error   { background:rgba(200,64,42,0.4);   color:white; }
+
   footer { text-align:center; padding:16px; color:var(--muted); font-size:10px; font-family:'Space Mono',monospace; letter-spacing:0.05em; }
 </style>
 </head>
@@ -226,10 +232,11 @@
 
 <header>
   <div class="roll-icon">🧻</div>
-  <div>
+  <div style="flex:1">
     <h1>トイレットペーパー 単価計算</h1>
-    <span>COST PER METER CALCULATOR v7</span>
+    <span>COST PER METER CALCULATOR v8</span>
   </div>
+  <span id="sync-status" class="sync-status" style="display:none"></span>
 </header>
 
 <!-- Tab navigation -->
@@ -426,13 +433,13 @@ let history    = [];
 let productDb  = {};
 let stores     = [];
 
-try { history   = JSON.parse(localStorage.getItem('tp_history')    || '[]'); } catch(e){}
 try { productDb = JSON.parse(localStorage.getItem('tp_product_db') || '{}'); } catch(e){}
 try { stores    = JSON.parse(localStorage.getItem('tp_stores')     || 'null') || [...DEFAULT_STORES]; } catch(e){ stores=[...DEFAULT_STORES]; }
 
 renderStoreSelect();
-renderHistory();
+renderHistory();   // まずlocalStorageで表示
 renderCompare();
+loadHistoryFromGAS(); // バックグラウンドでスプレッドシートから読み込み
 
 // Barcode animation
 (function(){
@@ -608,12 +615,36 @@ function saveToDb(){
 }
 
 // ============================================================
-// Calculate
+// Google Apps Script 連携
 // ============================================================
-// ============================================================
-// Google Apps Script 送信
-// ============================================================
-function sendToGAS(entry){
+// スプレッドシートから履歴を読み込む
+async function loadHistoryFromGAS(){
+  try{
+    showSyncStatus('loading');
+    const res = await fetch(`${GAS_URL}?token=017xvFU36Vs5YJ8sQqxX`, {
+      mode: 'cors'
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if(data.result === 'ok' && data.history && data.history.length > 0){
+      history = data.history;
+      localStorage.setItem('tp_history', JSON.stringify(history));
+      renderHistory();
+      renderCompare();
+      showSyncStatus('ok');
+    } else if(data.result === 'unauthorized'){
+      showSyncStatus('error', '認証エラー');
+    } else {
+      showSyncStatus('ok'); // データなしも正常
+    }
+  } catch(err){
+    console.warn('GAS読み込み失敗:', err);
+    showSyncStatus('error', 'オフライン');
+  }
+}
+
+// スプレッドシートへ書き込む
+async function sendToGAS(entry){
   const payload = {
     token:      '017xvFU36Vs5YJ8sQqxX',
     date:       entry.date,
@@ -628,19 +659,38 @@ function sendToGAS(entry){
     unitPrice:  entry.unitPrice.toFixed(2)
   };
 
-  fetch(GAS_URL, {
-    method:  'POST',
-    mode:    'no-cors',          // GASはno-corsで送信
-    headers: {'Content-Type':'application/json'},
-    body:    JSON.stringify(payload)
-  })
-  .then(()=>{
-    // no-corsではレスポンス内容を読めないが送信は完了
-    console.log('GAS送信完了');
-  })
-  .catch(err=>{
+  try{
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      mode:    'cors',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if(data.result === 'ok'){
+      showSyncStatus('saved');
+    } else {
+      throw new Error(data.result);
+    }
+  } catch(err){
     console.warn('GAS送信失敗:', err);
-  });
+    showSyncStatus('error', '送信失敗（ローカルには保存済み）');
+  }
+}
+
+// 同期ステータス表示
+function showSyncStatus(state, msg){
+  const icons = { loading:'⏳', ok:'☁️', saved:'✅', error:'⚠️' };
+  const labels = { loading:'同期中...', ok:'同期済み', saved:'スプレッドシートに保存しました', error: msg||'エラー' };
+  const el = document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = icons[state] + ' ' + labels[state];
+  el.className = 'sync-status ' + state;
+  el.style.display = 'inline-block';
+  if(state === 'saved' || state === 'ok'){
+    setTimeout(()=>{ el.style.display='none'; }, 3000);
+  }
 }
 
 function calculate(){
@@ -685,7 +735,7 @@ function calculate(){
   localStorage.setItem('tp_history',JSON.stringify(history));
   renderHistory();
 
-  // Google スプレッドシートへ送信（失敗してもアプリは止めない）
+  // Google スプレッドシートへ送信
   sendToGAS(entry);
 }
 
