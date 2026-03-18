@@ -222,7 +222,7 @@
     <div class="input-group">
       <div class="input-row">
         <label>バーコード (任意)</label>
-        <input type="text" id="barcode-input" placeholder="4901234567890" inputmode="numeric">
+        <input type="text" id="barcode-input" placeholder="4901234567890" inputmode="numeric" onblur="onBarcodeManualInput()" onkeydown="if(event.key==='Enter'){this.blur();}">
       </div>
       <div class="input-row">
         <label>価格 (円) *</label>
@@ -356,6 +356,17 @@ function stopScan(){
   document.getElementById('scan-placeholder').style.display='block';
   const btn=document.getElementById('btn-scan');
   btn.textContent='📷 カメラでスキャン'; btn.classList.remove('stop');
+}
+
+// ============================================================
+// Manual barcode input handler
+// ============================================================
+function onBarcodeManualInput(){
+  const barcode = document.getElementById('barcode-input').value.trim();
+  if(barcode.length >= 8 && /^\d+$/.test(barcode)){
+    const alreadyFilled = document.getElementById('product-name').value.trim() !== '';
+    if(!alreadyFilled) onBarcodeScanned(barcode);
+  }
 }
 
 // ============================================================
